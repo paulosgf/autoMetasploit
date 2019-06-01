@@ -10,3 +10,6 @@ mkdir –p $HOME/.msf4/plugins
 cd $HOME/.msf4/plugins
 
 wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
+
+To create the final report, download the report's XSLT template from my other project at:
+https://github.com/paulosgf/metasploitReportTemplate
