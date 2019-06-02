@@ -105,16 +105,27 @@ if (framework.sessions.length > 0)
     end
   end
 
-# Generate a XML report if thera are some open session
+# Generate a XML report if there are some open session
 if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
+# To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
+if ($?.success?)
+	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
+	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
+end
+if ($?.success?)
+	File.delete("/root/#{line}.xml")
+	File.delete("/root/#{line}.fo")
+end
 end
 
 # Terminate all open sessions and remove host from DB to don't contaminate next scan
 run_single("sessions -K")
-begin
-	run_single("hosts -d")
-end while ($?.success? == false)
+framework.db.hosts.each do |host|
+	if (host.address != nil || host.address != 0)
+		run_single("hosts -d")
+	end
+end
 
 # Remove this IP from list to don't repeat it in case of script restart
 
