@@ -5,10 +5,15 @@
 # cd $HOME/.msf4/plugins
 # wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
 
+path='/root/IPs.txt'
+remains=''
+line=''
+each=''
+
 run_single("load pentest")
 Dir.chdir('/root')
-path='/root/IPs.txt'
-file = File.open(path).each do |line|
+File.foreach(path) { |each|
+File.open(path, 'r') {|file| line=file.gets; remains=file.read}
   run_single("setg RHOSTS #{line}")
   run_single("setg LHOST 192.168.0.113")
   run_single("db_nmap #{line} -sS")
@@ -128,7 +133,7 @@ framework.db.hosts.each do |host|
 end
 
 # Remove this IP from list to don't repeat it in case of script restart
+File.open(path, 'w+') {|file| file.write(remains)}
+}
 
-end
-file.close()
 </ruby>
