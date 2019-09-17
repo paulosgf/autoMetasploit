@@ -10,6 +10,11 @@ remains=''
 line=''
 each=''
 
+# Function to get users input on Metasploit
+def getline()
+        return $stdin.readline
+end
+
 # This function inserts any passwords found on brute force scans into report. For this, install xmlstarlet tool
 def bruteforce(target)
 run_single("db_export -f pwdump -a /root/pwdump.txt")
@@ -135,14 +140,15 @@ end
 
 # wordlists
 pathdefault = "/usr/share/metasploit-framework/data/wordlists/"
-puts("The user and password lists already been set, but you can adjust to yours...")
-puts("It defaults to #{pathdefault}{unix_users.txt,unix_passwords.txt}")
-puts("if so, just hit ENTER, else copy these files to that directory and just pass your names here.")
-puts("...then happy cracking!")
-puts("Users filename:")
-user_file = gets.strip
-puts("Passwords filename:")
-pass_file = gets.strip
+print_line("The user and password lists already been set, but you can adjust to yours...")
+print_line("It defaults to #{pathdefault}{unix_users.txt,unix_passwords.txt}")
+print_line("if so, just hit ENTER, else copy these files to that directory and just pass your names here.")
+print_line("...then happy cracking!")
+print_line("Users filename:")
+user_file = getline.strip
+print_line("Passwords filename:")
+pass_file = getline.strip
+
 if (user_file != '')
 	run_single("setg USER_FILE #{pathdefault}#{user_file}")
 end
@@ -238,7 +244,7 @@ if (framework.sessions.length > 0)
 		end
 	end
     end
-  end
+end
 
 # Generate a XML report if there are some open session
 if (framework.sessions.length > 0)
@@ -248,10 +254,10 @@ if ($?.success?)
 	line="#{line}".chomp
 end
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
-# if ($?.success?)
+if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
 	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
-# end
+end
 if ($?.success?)
 	File.delete("/root/#{line}.xml")
 	File.delete("/root/#{line}.fo")
