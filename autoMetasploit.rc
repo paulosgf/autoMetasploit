@@ -1,6 +1,7 @@
 <ruby>
 # Scan loop on all IPs 
 # To do most of job, install pentest plugin first
+# Install my reportEmail plugin to send PDF reports to email
 # mkdir –p $HOME/.msf4/plugins
 # cd $HOME/.msf4/plugins
 # wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
@@ -12,7 +13,7 @@ each=''
 before=''
 
 # Function to get users input on Metasploit
-def getline()
+def getin()
         return $stdin.readline
 end
 
@@ -146,10 +147,10 @@ print_line("It defaults to #{pathdefault}{unix_users.txt,unix_passwords.txt}")
 print_line("if so, just hit ENTER, else copy these files to that directory and just pass your names here.")
 print_line("...then happy cracking!")
 print_line("Users filename:")
-user_file = getline
+user_file = getin
 user_file = user_file.chomp
 print_line("Passwords filename:")
-pass_file = getline
+pass_file = getin
 pass_file = pass_file.chomp
 
 if (user_file != '')
@@ -163,6 +164,7 @@ else
 	run_single("setg PASS_FILE #{pathdefault}unix_passwords.txt")
 end
 
+run_single("load reportEmail")
 run_single("load pentest")
 Dir.chdir('/root')
 File.foreach(path) { |each|
@@ -272,6 +274,12 @@ if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
 	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
 end
+
+# Send PDF report to email with reportEmail plugin
+if ($?.success?)
+	reportemail #{line}
+end
+
 if ($?.success?)
 	File.delete("/root/#{line}.xml")
 	File.delete("/root/#{line}.fo")
