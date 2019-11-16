@@ -277,7 +277,7 @@ end
 
 # Send PDF report to email with reportEmail plugin
 if ($?.success?)
-	reportemail #{line}
+	run_single("reportEmail #{line}")
 end
 
 if ($?.success?)
