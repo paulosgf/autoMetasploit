@@ -25,125 +25,450 @@ def bruteforce(target)
 run_single("db_export -f pwdump -a /root/pwdump.txt")
 target="#{target}".chomp
 
-File.open("/root/pwdump.txt", "r") do |fd|
-while(credentials = fd.gets) != nil
-		if (credentials =~ /[Ss][Ss][Hh]/)
-          		while(credentials = fd.gets) != nil
-				ssharray = "#{credentials}".to_s.split(/ /)
-				sshu=ssharray.slice(0).to_s
-				sshp=ssharray.slice(1).to_s.chomp
-            		break if credentials.include?("\n")
-          		end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']/module" -t elem -n password -v "#{sshp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']/username" -v "#{sshu}" "/root/#{target}.xml"`
-		end
-                elsif (credentials =~ /[Mm]icrosoft-[Dd][Ss]/ or credentials =~ /[Nn]etbios-[Ss][Ss][Nn]/ or credentials =~ /[Ss][Mm][Bb]/)
-                        while(credentials = fd.gets) != nil
-                                msarray = "#{credentials}".to_s.split(/ /)
-                                msu=msdsarray.slice(0).to_s
-                                msp=msdsarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']" -t elem -n password -v "#{msp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']/username" -v "#{msu}" "/root/#{target}.xml"`
-		end
-                elsif  (credentials =~ /[Ff][Tt][Pp]/)
-                        while(credentials = fd.gets) != nil
-                                ftparray = "#{credentials}".to_s.split(/ /)
-                                ftpu=ftparray.slice(0).to_s
-                                ftpp=ftparray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']" -t elem -n password -v "#{ftpp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']/username" -v "#{ftpu}" "/root/#{target}.xml"`
-                end
-                elsif  (credentials =~ /[Tt]elnet/)
-                        while(credentials = fd.gets) != nil
-                                telnetarray = "#{credentials}".to_s.split(/ /)
-                                telnetu=telnetarray.slice(0).to_s
-                                telnetp=telnetarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']" -t elem -n password -v "#{telnetp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']/username" -v "#{telnetu}" "/root/#{target}.xml"`
-                end
-                elsif  (credentials =~ /[Mm][Yy][Ss][Qq][Ll]/)
-                        while(credentials = fd.gets) != nil
-                                mysqlarray = "#{credentials}".to_s.split(/ /)
-                                mysqlu=mysqlarray.slice(0).to_s
-                                mysqlp=mysqlarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']/module" "/root/#{target}.xml"`
-		if ($?.success?)
-			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']" -t elem -n password -v "#{mysqlp}" "/root/#{target}.xml"`
-			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']/username" -v "#{mysqlu}" "/root/#{target}.xml"`
+sshuser = []
+sshpass = []
+mysuser = []
+myspass = []
+smbuser = []
+smbpass = []
+ftpuser = []
+ftppass = []
+teluser = []
+telpass = []
+vncuser = []
+vncpass = []
+sqluser = []
+sqlpass = []
+popuser = []
+poppass = []
+psqluse = []
+psqlpas = []
+credssh=nil
+credmys=nil
+credsmb=nil
+credftp=nil
+credtel=nil
+credvnc=nil
+credsql=nil
+credpop=nil
+crepsql=nil
+hassh = Hash.new
+hamys = Hash.new
+hasmb = Hash.new
+haftp = Hash.new
+hatel = Hash.new
+havnc = Hash.new
+hasql = Hash.new
+hapop = Hash.new
+hapsq = Hash.new
+count=0
+nextline=0
+
+File.open("/root/pwdump.txt").each_line do |line|
+nextline += 1
+        if (line =~ /[Ss][Ss][Hh]/)
+	        hassh["credssh#{count}"] = nextline
+	        count = count + 1
+	elsif  (line =~ /[Mm][Yy][Ss][Qq][Ll]/)
+		hamys["credmys#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Mm][Yy][Ss][Qq][Ll]/ or line =~ /[Mm]icrosoft-[Dd][Ss]/ or line =~ /[Nn]etbios-[Ss][Ss][Nn]/)
+		hasmb["credsmb#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Ff][Tt][Pp]/)
+		haftp["credftp#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Tt]elnet/)
+		hatel["credtel#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Vv][Nn][Cc]/)
+		havnc["credvnc#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Mm][Ss][Ss]ql/)
+		hasql["credsql#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Pp][Oo][Pp]3/)
+		hapop["credpop#{count}"] = nextline
+		count = count + 1
+	elsif  (line =~ /[Pp]ostgres/)
+		hapsq["crepsql#{count}"] = nextline
+		count = count + 1
+	end
+end
+
+file = IO.readlines("./pwdump.txt")
+
+if (! hassh.empty?)
+hassh.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			sshuser.push("#{wrd}")
 		else
-			`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/mysql/mysql_login" "/root/#{target}.xml"`
-			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" -t elem -n username -v "#{mysqlu}" "/root/#{target}.xml"`
-			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" -t elem -n password -v "#{mysqlp}" "/root/#{target}.xml"`
+			sshpass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']["#{j}"]/module" -t elem -n password -v "#{sshpass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']["#{j}"]/username"  -v "#{sshuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == sshuser.length)
+			break
 		end
-                elsif  (credentials =~ /[Vv][Nn][Cc]/)
-                        while(credentials = fd.gets) != nil
-                                vncarray = "#{credentials}".to_s.split(/ /)
-                                vncu=vncarray.slice(0).to_s
-                                vncp=vncarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']" -t elem -n password -v "#{vncp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']/username" -v "#{vncu}" "/root/#{target}.xml"`
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "/MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/ssh/ssh_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']["#{j}"]/module" -t elem -n username -v "#{sshuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ssh/ssh_login']["#{j}"]/module" -t elem -n password -v "#{sshpass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == sshuser.length)
+                       break
                 end
-                elsif (credentials =~ /[Mm][Ss][Ss]ql/)
-                        while(credentials = fd.gets) != nil
-                                mssqlarray = "#{credentials}".to_s.split(/ /)
-                                mssqlu=mssqlarray.slice(0).to_s
-                                mssqlp=mssqlarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']" -t elem -n password -v "#{mssqlp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']/username" -v "#{mssqlu}" "/root/#{target}.xml"`
+end
+end
+end
+
+if (! hamys.empty?)
+hamys.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			mysuser.push("#{wrd}")
+		else
+			myspass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']["#{j}"]/module" -t elem -n password -v "#{myspass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']["#{j}"]/username" -v "#{mysuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == mysuser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/mysql/mysql_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']["#{j}"]/module" -t elem -n username -v "#{mysuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mysql/mysql_login']["#{j}"]/module" -t elem -n password -v "#{myspass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == mysuser.length)
+                        break
                 end
-                elsif (credentials =~ /[Pp][Oo][Pp]3/)
-                        while(credentials = fd.gets) != nil
-                                pop3array = "#{credentials}".to_s.split(/ /)
-                                pop3u=pop3array.slice(0).to_s
-                                pop3p=pop3array.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']" -t elem -n password -v "#{pop3p}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']/username" -v "#{pop3u}" "/root/#{target}.xml"`
+end
+end
+end
+
+if (! hasmb.empty?)
+hasmb.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			smbuser.push("#{wrd}")
+		else
+			smbpass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']["#{j}"]/module" -t elem -n password -v "#{smbpass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']["#{j}"]/username" -v "#{smbuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == smbuser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/smb/smb_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']["#{j}"]/module" -t elem -n username -v "#{smbuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/smb/smb_login']["#{j}"]/module" -t elem -n password -v "#{smbpass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == smbuser.length)
+                        break
                 end
-                elsif (credentials =~ /[Pp]ostgres/)
-                        while(credentials = fd.gets) != nil
-                                postgresarray = "#{credentials}".to_s.split(/ /)
-                                postgresu=postgresarray.slice(0).to_s
-                                postgresp=postgresarray.slice(1).to_s.chomp
-                        break if credentials.include?("\n")
-			end
-		`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt/module" "/root/#{target}.xml"`
-		if ($?.success?)
-    			`xmlstarlet ed -L -a "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']" -t elem -n password -v "#{postgresp}" "/root/#{target}.xml"`
-    			`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']/username" -v "#{postgresu}" "/root/#{target}.xml"`
+end
+end
+end
+
+if (! haftp.empty?)
+haftp.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			ftpuser.push("#{wrd}")
+		else
+			ftppass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']["#{j}"]/module" -t elem -n password -v "#{ftppass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']["#{j}"]/username" -v "#{ftpuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == ftpuser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/ftp/ftp_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']["#{j}"]/module" -t elem -n username -v "#{ftpuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/ftp/ftp_login']["#{j}"]/module" -t elem -n password -v "#{ftppass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == ftpuser.length)
+                        break
                 end
+end
+end
+end
+
+if (! hatel.empty?)
+hatel.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			teluser.push("#{wrd}")
+		else
+			telpass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']["#{j}"]/module" -t elem -n password -v "#{telpass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']["#{j}"]/username" -v "#{teluser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == teluser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/telnet/telnet_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']["#{j}"]/module" -t elem -n username -v "#{teluser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/telnet/telnet_login']["#{j}"]/module" -t elem -n password -v "#{telpass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == teluser.length)
+                        break
                 end
-      end
+end
+end
+end
+
+if (! havnc.empty?)
+havnc.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			vncuser.push("#{wrd}")
+		else
+			vncpass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']["#{j}"]/module" -t elem -n password -v "#{vncpass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']["#{j}"]/username" -v "#{vncuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == vncuser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/vnc/vnc_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']["#{j}"]/module" -t elem -n username -v "#{vncuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/vnc/vnc_login']["#{j}"]/module" -t elem -n password -v "#{vncpass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == vncuser.length)
+                        break
+                end
+end
+end
+end
+
+if (! hasql.empty?)
+hasql.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			sqluser.push("#{wrd}")
+		else
+			sqlpass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']["#{j}"]/module" -t elem -n password -v "#{sqlpass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']["#{j}"]/username" -v "#{sqluser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == sqluser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/mssql/mssql_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']["#{j}"]/module" -t elem -n username -v "#{sqluser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/mssql/mssql_login']["#{j}"]/module" -t elem -n password -v "#{sqlpass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == sqluser.length)
+                        break
+                end
+end
+end
+end
+
+if (! hapop.empty?)
+hapop.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			popuser.push("#{wrd}")
+		else
+			poppass.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']["#{j}"]/module" -t elem -n password -v "#{poppass[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']["#{j}"]/username" -v "#{popuser[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == popuser.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/pop3/pop3_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']["#{j}"]/module" -t elem -n username -v "#{popuser[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/pop3/pop3_login']["#{j}"]/module" -t elem -n password -v "#{poppass[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == popuser.length)
+                        break
+                end
+end
+end
+end
+
+if (! hapsq.empty?)
+hapsq.each do |key, value|
+	file[value].split.each_with_index do |wrd, idx| 
+		if ((idx) % 2 == 0)
+			psqluse.push("#{wrd}")
+		else
+			psqlpas.push("#{wrd}")
+		end	
+	end
+end
+
+`xmlstarlet sel -t  -v "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']/module" "/root/#{target}.xml"`
+if ($?.exitstatus == 0)
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']["#{j}"]/module" -t elem -n password -v "#{psqlpas[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']["#{j}"]/username" -v "#{psqluse[i]}" "/root/#{target}.xml"`
+	i += 1
+	j += 1
+		if (i == psqluse.length)
+			break
+		end
+end
+
+else
+i=0
+j=1
+loop do
+`xmlstarlet ed -L -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts" -t elem -n "vuln_attempt" -v "" -s "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[last()]" -t elem -n "module" -v "auxiliary/scanner/postgres/postgres_login" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']["#{j}"]/module" -t elem -n username -v "#{psqluse[i]}" "/root/#{target}.xml"`
+`xmlstarlet ed -L -i "//MetasploitV5/hosts/host/vulns/vuln/vuln_attempts/vuln_attempt[module='auxiliary/scanner/postgres/postgres_login']["#{j}"]/module" -t elem -n password -v "#{psqlpas[i]}" "/root/#{target}.xml"`
+        i += 1
+	j += 1
+                if (i == psqluse.length)
+                        break
+                end
+end
+end
+end
+
 if ($?.success?)
 	File.delete("/root/pwdump.txt")
-end
 end
 end
 
@@ -337,15 +662,22 @@ if (framework.sessions.length > 0)
 end
 
 # Generate a XML report if there are some open session
+# bug
 if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
+print_line("criou xml")
 	bruteforce(line)
+print_line("terminou brute")
 	line="#{line}".chomp
 
+
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
+# bug
 if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
+print_line("criou fop")
 	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
+print_line("criou pdf")
 end
 
 # Send PDF report to email with reportEmail plugin
@@ -353,10 +685,11 @@ if ($?.success?)
 	run_single("reportEmail #{line}")
 end
 
-if ($?.success?)
-	File.delete("/root/#{line}.xml")
-	File.delete("/root/#{line}.fo")
-end
+# bug
+#if ($?.success?)
+#	File.delete("/root/#{line}.xml")
+#	File.delete("/root/#{line}.fo")
+#end
 end
 
 # If LDAP or AD user file exist, remove it
@@ -369,10 +702,10 @@ run_single("sessions -K")
 framework.db.hosts.each do |host|
 if (host.address != nil || host.address != 0)
 	run_single("hosts -d")
-
-	while ($?.exitstatus != 0)
-		run_single("hosts -d")
-	end
+# bug
+#	while ($?.exitstatus != 0)
+#		run_single("hosts -d")
+#	end
 end
 end
 
@@ -388,5 +721,5 @@ end
 # Remove this IP from list to don't repeat it in case of script restart
 File.open(path, 'w+') {|file| file.write(remains)}
 }
-
+run_single("quit")
 </ruby>
