@@ -582,6 +582,7 @@ lhost.each do |ip|
         end
 end
 
+# Start of scan
 run_single("load reportEmail")
 run_single("load pentest")
 Dir.chdir('/root')
@@ -645,7 +646,73 @@ framework.db.hosts.each do |host|
 				end
 			end
 		end
+	else 
+	host.services.each do |serv|
+		if (serv.state == Msf::ServiceState::Open)
+			if (serv.port.to_i == 389)
+				# search for users via LDAP anonymous bind,
+				# and if it don't succeed, try via anonymous kerberos service
+				shell = []
+				arr = []
+				names = []
+				str = nil
+				fmts = nil
+				org = nil
+				shell = %x|nmap -sV -p 389 --script ldap-rootdse #{line}|
+				shell.each_line do |line|
+				        if (line =~ /namingContexts/)
+				                str = line
+				                fmts = "#{str}".squeeze(' ')
+				                arr = fmts.split(" ")
+				                org = arr[2]
+						print_line(org)
+						break
+					end
+				end
+
+#				names = %x|ldapsearch -LLL -w '' -x -h "#{line}" -b "#{org}" -S ms-Mcs-AdmPwd dn|
+				if ($?.success?)
+#					names = names.gsub!("\n\n", "\n")
+#					names = names.gsub!(/dn: uid=|cn=|,.*/) { '' }
+#						if (names =~ /dn: /)
+#				        		names.gsub!(/dn:.*\n/, '')
+#						end
+#						file = File.open("/root/uid.txt", "w")
+#						file.puts(names)
+#						file.close
+#				else
+					map = {'DC=' => '', ',' => '.'}
+					re = Regexp.new(map.keys.map { |x| Regexp.escape(x) }.join('|'))
+					dom = org.gsub!(re, map).upcase
+					run_single("use auxiliary/gather/kerberos_enumusers")
+					run_single("set RHOST #{line}")
+					run_single("set DOMAIN #{dom}")
+					run_single("set USER_FILE /usr/share/metasploit-framework/data/wordlists/unix_users.txt")
+					run_single("run")
+					run_single("back")
+					run_single("creds -o /root/uid.tmp")
+					# find server domain name
+					down = dom.downcase.split(".", 2)
+					domain = down[1]
+					run_single("setg DOMAIN #{domain}")
+
+					i=9
+					logins = []
+					file = File.open("uid.tmp")
+					data = File.read("uid.tmp").split(',')
+
+					while i < data.length
+						logins.push(data[i].gsub!('"', ''))
+						i=i+6
+					end
+
+					f = File.open("/root/uid.txt", "w+")  { |f| logins.each { |line| f << "#{line}\n"} }
+					File.delete("/root/uid.tmp")
+				end
+			end
+		end
 	end
+end
 end
 
 # If we have found some users, put them on users file
@@ -750,16 +817,19 @@ framework.db.hosts.each do |host|
 end
 
 # Generate a XML report if there are some open session
-if (framework.sessions.length > 0)
+# debug disable
+#if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
 	bruteforce(line)
 	line="#{line}".chomp
 
+
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
-if ($?.success?)
+# debug disable
+#if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
 	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
-end
+#end
 
 # Send PDF report to email with reportEmail plugin
 if ($?.success?)
@@ -771,7 +841,9 @@ if ($?.success?)
 	File.delete("/root/#{line}.xml")
 	File.delete("/root/#{line}.fo")
 end
-end
+
+# debug disable
+#end
 
 # If LDAP or AD user file exist, remove it
 if (File.file?('/root/uid.txt'))
