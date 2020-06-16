@@ -17,4 +17,4 @@ https://github.com/paulosgf/metasploitReportTemplate
 To send PDF report email (Gmail), use my Metasploit plugin reportEmail at:
 https://github.com/paulosgf/reportEmail
 
-Install the ldap-utils package to enumerate LDAP users no targeet too.
+Install the ldap-utils package to enumerate LDAP users on target too.
