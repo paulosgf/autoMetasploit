@@ -6,9 +6,8 @@
 # cd $HOME/.msf4/plugins
 # wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
 
-require 'socket'
-
 path='/root/IPs.txt'
+ip=''
 remains=''
 line=''
 each=''
@@ -34,6 +33,10 @@ $popuser = []
 $poppass = []
 $psqluse = []
 $psqlpas = []
+
+# Defines LHOST from attacker's machine
+p  = %x|hostname -I|
+run_single("setg LHOST #{ip}")
 
 # Function to get users input on Metasploit
 def getin()
@@ -623,22 +626,6 @@ else
 	run_single("setg PASS_FILE #{pathdefault}unix_passwords.txt")
 end
 
-# This lists all IP addresses from attacker's machine and defines LHOST with the first that's don't be localhost nor IPv6
-sock = []
-lhost = []
-
-sock = Socket.ip_address_list
-sock.each do |ip|
-        lhost.push(ip.ip_address)
-end
-
-lhost.each do |ip|
-        if !ip.include? ("127" or "::")
-		run_single("setg LHOST #{ip}")
-                break
-        end
-end
-
 # Start of scan
 run_single("load reportEmail")
 run_single("load pentest")
@@ -805,7 +792,7 @@ end
 framework.db.hosts.each do |host|
     host.services.each do |serv|
       if (serv.state == Msf::ServiceState::Open)
-	if ((serv.port.to_i == 80) or (serv.port.to_i == 443))
+	if ((serv.port.to_i == 80) or (serv.port.to_i == 443) or (serv.port.to_i == 8080))
 	  run_single("load wmap")
 	  run_single("wmap_sites -a http://#{line}")
 	  run_single("wmap_targets -t http://#{line}")
@@ -921,7 +908,7 @@ if (framework.sessions.length > 0)
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
 if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
-	run_single("/opt/fop-2.3/fop/fop /root/#{line}.fo /root/#{line}.pdf")
+	run_single("/opt/fop /root/#{line}.fo /root/#{line}.pdf")
 end
 
 # Send PDF report to email with reportEmail plugin
