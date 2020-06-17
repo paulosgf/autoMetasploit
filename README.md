@@ -11,6 +11,9 @@ cd $HOME/.msf4/plugins
 
 wget https://raw.github.com/darkoperator/Metasploit-Plugins/master/pentest.rb
 
+Edit the brute force resource script to disable simultaneous jobs:
+sed -i 's/-j//g;/^jobs/d' /usr/share/metasploit-framework/scripts/resource/auto_brute.rc
+
 To create the final report, download the report's XSLT template from my other project at:
 https://github.com/paulosgf/metasploitReportTemplate
 
