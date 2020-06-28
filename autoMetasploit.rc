@@ -43,6 +43,28 @@ def getin()
         return $stdin.readline
 end
 
+# Function to decode base64 strings on report
+def decode64(target)
+counter=''
+decoded=''
+escaped=''
+
+	counter = %x|xmlstarlet sel -t -v "count(//MetasploitV5/hosts/host/notes/note/data)" "/root/#{target}.xml"|
+
+	i=1
+	loop do
+		decoded = %x(xmlstarlet sel -T -t -v "//MetasploitV5/hosts/host/notes/note[#{i}]/data" "/root/#{target}.xml" | base64 -d)
+		escaped = decoded.gsub!(/[^\w\d\s[[:punct:]]]/, '')
+		escaped = escaped.gsub!(/"|{|[[:cntrl:]]/, ' ')
+			if ($?.exitstatus == 0)
+				print_line("#{escaped}")
+				`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/notes/note[#{i}]/data" -v "#{escaped}" "/root/#{target}.xml"`
+			end
+		i += 1
+		break if ("#{i}" == "#{counter}")
+	end
+end
+
 # This function inserts any passwords found on brute force scans into report. For this, install xmlstarlet tool
 def bruteforce()
 run_single("db_export -f pwdump -a /root/pwdump.txt")
@@ -100,7 +122,6 @@ nextline += 1
 	end
 end
 
-# bug
 file = File.readlines("/root/pwdump.txt")
 
 if ("#{hassh.length}" != 0)
@@ -905,6 +926,7 @@ if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
 	edtxml(line)
 	line="#{line}".chomp
+	decode64(line)
 
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
 if ($?.success?)
@@ -918,9 +940,8 @@ if ($?.success?)
 end
 
 if ($?.success?)
-# debug
-#	File.delete("/root/#{line}.xml")
-#	File.delete("/root/#{line}.fo")
+	File.delete("/root/#{line}.xml")
+	File.delete("/root/#{line}.fo")
 end
 
 end

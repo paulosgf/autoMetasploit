@@ -21,3 +21,5 @@ To send PDF report email (Gmail), use my Metasploit plugin reportEmail at:
 https://github.com/paulosgf/reportEmail
 
 Install the ldap-utils package to enumerate LDAP users on target too.
+Lastly it need the base64 command from the coreutils package, to decode base64 strings on report.
+
