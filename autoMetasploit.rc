@@ -55,7 +55,7 @@ escaped=''
 	loop do
 		decoded = %x(xmlstarlet sel -T -t -v "//MetasploitV5/hosts/host/notes/note[#{i}]/data" "/root/#{target}.xml" | base64 -d)
 		escaped = decoded.gsub!(/[^\w\d\s[[:punct:]]]/, '')
-		escaped = escaped.gsub!(/"|{|[\|[[:cntrl:]]/, ' ')
+		escaped = escaped.gsub!(/"|{|[[:cntrl:]]/, ' ')
 			if ($?.exitstatus == 0)
 				print_line("#{escaped}")
 				`xmlstarlet ed -L -u "//MetasploitV5/hosts/host/notes/note[#{i}]/data" -v "#{escaped}" "/root/#{target}.xml"`
