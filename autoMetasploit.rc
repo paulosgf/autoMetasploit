@@ -752,14 +752,14 @@ framework.db.hosts.each do |host|
 					domain = down[1]
 					run_single("setg DOMAIN #{domain}")
 
-					i=9
+					i=10
 					logins = []
 					file = File.open("uid.tmp")
 					data = File.read("uid.tmp").split(',')
 
 					while i < data.length
 						logins.push(data[i].gsub!('"', ''))
-						i=i+6
+						i=i+7
 					end
 
 					f = File.open("/root/uid.txt", "w+")  { |f| logins.each { |line| f << "#{line}\n"} }
