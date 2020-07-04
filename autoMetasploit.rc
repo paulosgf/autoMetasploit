@@ -38,6 +38,9 @@ $psqlpas = []
 ip  = %x|hostname -I|
 run_single("setg LHOST #{ip}")
 
+# Defines number of threads on brute force
+cores = %x|nproc --all|
+
 # Function to get users input on Metasploit
 def getin()
         return $stdin.readline
@@ -782,11 +785,11 @@ if (framework.sessions.length <= 0)
   framework.db.hosts.each do |host|
     if (host.os_name =~ /[Ll]inux/)
         run_single("set VERBOSE true")
-        run_single("set THREADS 1")
+        run_single("set THREADS #{cores}")
         run_single("resource /usr/share/metasploit-framework/scripts/resource/auto_brute.rc")
     elsif (host.os_name =~ /[Ww]indows/)
         run_single("set VERBOSE true")
-	run_single("set THREADS 1")
+	run_single("set THREADS #{cores}")
 	run_single("resource /usr/share/metasploit-framework/scripts/resource/auto_brute.rc")
     end
   end
@@ -926,8 +929,9 @@ if (framework.sessions.length > 0)
 	run_single("db_export -f xml -a /root/#{line}.xml")
 	edtxml(line)
 	line="#{line}".chomp
-	decode64(line)
-
+# huge XML's bug 
+#	decode64(line)
+	
 # To create PDF reports, install Apache's FOP from https://xmlgraphics.apache.org/fop/download.html on /opt
 if ($?.success?)
 	run_single("xsltproc --output /root/#{line}.fo --stringparam fop1.extensions 1 /root/metasploitReportTemplate.xsl /root/#{line}.xml")
